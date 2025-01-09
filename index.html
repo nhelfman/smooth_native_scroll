@@ -6,40 +6,41 @@
 	<title>
 		Compositor vs Main thread scrolling
 	</title> 
-<style>
-	html {
-		overflow: hidden;
-		font-family: Arial, Helvetica, sans-serif;
-	}
+    <style>
+        html {
+            overflow: hidden;
+            font-family: Arial, Helvetica, sans-serif;
+        }
 
-	.scrollableContainer {
-        overflow: auto;
-        overflow-anchor: none;
-		position: relative;
-		width: 99vw;
-        height: 93vh;
-	}
+        .scrollableContainer {
+            overflow: auto;
+            overflow-anchor: none;
+            position: relative;
+            width: 99vw;
+            height: 93vh;
+        }
 
-    .mainContainer {
-        height: 100%;
-        width: 100%;
-    }
+        .mainContainer {
+            height: 100%;
+            width: 100%;
+        }
 
-    .pushDiv {
-        height: 0px;
-    }
+        .pushDiv {
+            height: 0px;
+        }
 
-	.mainApp {
-		position: relative;
-	}
-</style>
+        .mainApp {
+            position: relative;
+        }
+    </style>
 </head>
 
 <body>
-	<div>
-		<input type="checkbox" id="addBackgroundColorToScrollable" onchange="handleCheckboxChangeAddBackgroundColorToScrollable()">
-		<label for="addBackgroundColorToScrollable">Add background color to scrollable</label>
-	</div>
+<div>
+    <input type="checkbox" id="addBackgroundColorToScrollable" onchange="handleCheckboxChangeAddBackgroundColorToScrollable()">
+    <label for="addBackgroundColorToScrollable">Add background color to scrollable</label>
+</div>
+
 <div id="app" class="mainApp">
 	<div id="scrollableContainer" class="scrollableContainer">
 		<div id="mainContainer" class="mainContainer">
