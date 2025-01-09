@@ -14,7 +14,7 @@ Try demo here: https://nhelfman.github.io/smooth_native_scroll/
 
 **Issue**: during scrolling, white areas appear in the background although no white content was added to the DOM - we expect to see only red, green and blue areas.
 
-(!) This is not always happening and can depends on different environment factors like screen / display settings / CPU / ....
+(!) This is not always happening and can depends on different environment factors like screen / display settings / slow CPU / ....
 
 ![alt text](image.png)
 

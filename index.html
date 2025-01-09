@@ -70,7 +70,7 @@
 		const block = document.createElement("div");
 		block.style.width = blockWidth + "px";
 		block.style.height = blockHeight + "px";
-		block.style.backgroundColor = y % 3 === 0 ? "red" : y % 3 === 1 ? "green" : "blue";
+		block.style.backgroundColor = ["red", "green", "blue"][y % 3];
 		block.style.border = "1px solid #000000";
 		return block;
 	}
