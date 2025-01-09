@@ -37,12 +37,12 @@
 
 <body>
 <div>
-    <input type="checkbox" id="addBackgroundColorToScrollable" onchange="handleCheckboxChangeAddBackgroundColorToScrollable()">
+    <input type="checkbox" id="addBackgroundColorToScrollable" checked onchange="handleCheckboxChange()">
     <label for="addBackgroundColorToScrollable">Add background color to scrollable</label>
 </div>
 
 <div id="app" class="mainApp">
-	<div id="scrollableContainer" class="scrollableContainer">
+	<div id="scrollableContainer" class="scrollableContainer" style="background-color: #ffffff;">
 		<div id="mainContainer" class="mainContainer">
 			<div id="pushDiv" class="pushDiv"></div>
 			<div id="blockContainer" class="blockContainer"></div>
@@ -51,10 +51,11 @@
 </div>
 
 <script>
-	function handleCheckboxChangeAddBackgroundColorToScrollable() {
+	function handleCheckboxChange() {
 		if (document.getElementById("addBackgroundColorToScrollable").checked) {
 			scrollableContainer.style.backgroundColor = "#ffffff";
 		} else {
+			// remove background color to promote main thread scroll
 			scrollableContainer.style.backgroundColor = "";
 		}
 	}
