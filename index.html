@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en"> 
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>
+		Compositor vs Main thread scrolling
+	</title> 
+<style>
+	html {
+		overflow: hidden;
+		font-family: Arial, Helvetica, sans-serif;
+	}
+
+	.scrollableContainer {
+        overflow: auto;
+        overflow-anchor: none;
+		position: relative;
+		width: 99vw;
+        height: 93vh;
+	}
+
+    .mainContainer {
+        height: 100%;
+        width: 100%;
+    }
+
+    .pushDiv {
+        height: 0px;
+    }
+
+	.mainApp {
+		position: relative;
+	}
+</style>
+</head>
+
+<body>
+	<div>
+		<input type="checkbox" id="addBackgroundColorToScrollable" onchange="handleCheckboxChangeAddBackgroundColorToScrollable()">
+		<label for="addBackgroundColorToScrollable">Add background color to scrollable</label>
+	</div>
+<div id="app" class="mainApp">
+	<div id="scrollableContainer" class="scrollableContainer">
+		<div id="mainContainer" class="mainContainer">
+			<div id="pushDiv" class="pushDiv"></div>
+			<div id="blockContainer" class="blockContainer"></div>
+		</div>
+	</div>
+</div>
+
+<script>
+	function handleCheckboxChangeAddBackgroundColorToScrollable() {
+		if (document.getElementById("addBackgroundColorToScrollable").checked) {
+			scrollableContainer.style.backgroundColor = "#ffffff";
+		} else {
+			scrollableContainer.style.backgroundColor = "";
+		}
+	}
+
+	function drawBlock(x, y) {
+		console.log("Drawing block " + y);
+		const blockElement = createBlockElement(x,y);
+		return blockElement;
+	}
+
+	function createBlockElement(x, y) {
+		const block = document.createElement("div");
+		block.style.width = blockWidth + "px";
+		block.style.height = blockHeight + "px";
+		block.style.backgroundColor = y % 3 === 0 ? "red" : y % 3 === 1 ? "green" : "blue";
+		block.style.border = "1px solid #000000";
+		return block;
+	}
+
+
+	function calculateRequiredBlocks(scrollTop, bufferedArea) {
+		const bufferedAreaTop = Math.max(0, scrollTop - bufferedArea);
+		const firstBlockIndex = Math.min(Math.floor(bufferedAreaTop / blockHeight), maxBlock);
+		const bufferedAreaBottom = scrollTop + screenHeight + bufferedArea;
+		const lastBlockIndex = Math.min(Math.ceil(bufferedAreaBottom / blockHeight), maxBlock);
+		return [firstBlockIndex, lastBlockIndex];
+	}
+
+
+	let firstBlockIndexInDom = -1;
+	let lastBlockIndexInDom = -1;
+
+	function onViewportChange(scrollTop) {
+		let [firstRequiredBlockIndex, lastRequiredBlockIndex] = calculateRequiredBlocks(scrollTop, bufferedArea);
+		
+		if (firstBlockIndexInDom === -1) {
+			fillEmptyViewport(firstRequiredBlockIndex, lastRequiredBlockIndex);
+			return;
+		}
+
+		// Required area:    |-------|
+		// Area in DOM:    |------------|
+		if (firstRequiredBlockIndex >= firstBlockIndexInDom && lastRequiredBlockIndex <= lastBlockIndexInDom) {
+			// The blocks in the DOM cover the required area, no need to do anything
+			return;
+		}
+
+		// Required area:           |-----|
+		// Area in DOM:    |-----|
+		if (firstRequiredBlockIndex > lastBlockIndexInDom) {
+			// There is no intersection between the required area and the area in the DOM, we need to remove all blocks and add the new ones
+			const blocksToRemove = lastBlockIndexInDom - firstBlockIndexInDom + 1;
+			appendBlocksToEnd(firstRequiredBlockIndex, lastRequiredBlockIndex);
+			removeBlocksFromStart(blocksToRemove);
+			updatePushDiv(firstRequiredBlockIndex, pushDiv);
+			firstBlockIndexInDom = firstRequiredBlockIndex;
+			lastBlockIndexInDom = lastRequiredBlockIndex;
+			return;
+		}		
+
+		// Required area:    |-----|
+		// Area in DOM:               |-----|
+		if (lastRequiredBlockIndex < firstBlockIndexInDom) {
+			// There is no intersection between the required area and the area in the DOM, we need to remove all blocks and add the new ones
+			const blocksToRemove = lastBlockIndexInDom - firstBlockIndexInDom + 1;
+			appendBlocksToStart(firstRequiredBlockIndex, lastRequiredBlockIndex);
+			removeBlocksFromEnd(blocksToRemove);
+			updatePushDiv(firstRequiredBlockIndex, pushDiv);
+			firstBlockIndexInDom = firstRequiredBlockIndex;
+			lastBlockIndexInDom = lastRequiredBlockIndex;
+			return;
+		}
+
+		// Required area:    |-----|
+		// Area in DOM:    |-----|
+		if (lastRequiredBlockIndex > lastBlockIndexInDom) {
+			appendBlocksToEnd(lastBlockIndexInDom + 1, lastRequiredBlockIndex);
+			lastBlockIndexInDom = lastRequiredBlockIndex;
+		}
+
+		if (firstRequiredBlockIndex > firstBlockIndexInDom) {
+			removeBlocksFromStart(firstRequiredBlockIndex - firstBlockIndexInDom);
+			updatePushDiv(firstRequiredBlockIndex, pushDiv);
+			firstBlockIndexInDom = firstRequiredBlockIndex;
+		}
+
+		// Required area: |-----|                   
+		// Area in DOM:     |-----|
+		if (firstRequiredBlockIndex < firstBlockIndexInDom) {
+			appendBlocksToStart(firstRequiredBlockIndex, firstBlockIndexInDom - 1);
+			updatePushDiv(firstRequiredBlockIndex, pushDiv);
+			firstBlockIndexInDom = firstRequiredBlockIndex;
+		}
+
+		if (lastBlockIndexInDom > lastRequiredBlockIndex) {
+			removeBlocksFromEnd(lastBlockIndexInDom - lastRequiredBlockIndex);
+			lastBlockIndexInDom = lastRequiredBlockIndex;
+		}
+	}
+
+
+	function removeBlocksFromStart(count) {
+		removeBlocksFromStartInContainer(count, blockContainer);
+	}
+
+	function removeBlocksFromStartInContainer(count, container) {
+		let counter = 0;
+		let block = container.firstChild;
+		while (block && counter < count) {
+			container.removeChild(block);
+			block = container.firstChild;
+			counter++;
+		}
+	}
+
+	function removeBlocksFromEnd(count) {
+		removeBlocksFromEndInContainer(count, blockContainer);
+	}
+
+	function removeBlocksFromEndInContainer(count, container) {
+		let counter = 0;
+		let block = container.lastChild;
+		while (block && counter < count) {
+			container.removeChild(block);
+			block = container.lastChild;
+			counter++;
+		}
+	}
+
+	function appendBlocksToStart(firstBlockIndex, lastBlockIndex) {
+		appendBlocksToStartInContainer(firstBlockIndex, lastBlockIndex, blockContainer);
+	}
+
+	function appendBlocksToStartInContainer(firstBlockIndex, lastBlockIndex, container) {
+		for (let i = lastBlockIndex; i >= firstBlockIndex; i--) {
+			const block = drawBlock(0, i);
+			if (block !== null) {
+				container.insertBefore(block, container.firstChild);
+			}
+		}
+	}
+
+	function appendBlocksToEnd(firstBlockIndex, lastBlockIndex) {
+		appendBlocksToEndInContainer(firstBlockIndex, lastBlockIndex, blockContainer);
+	}
+
+	function appendBlocksToEndInContainer(firstBlockIndex, lastBlockIndex, container) {
+		for (let i = firstBlockIndex; i <= lastBlockIndex; i++) {
+			const block = drawBlock(0, i);
+			if (block !== null) {
+				container.appendChild(block);
+			}
+		}
+	}
+
+	function fillEmptyViewport(firstBlockIndex, lastBlockIndex) {
+		fillEmptyViewportInContainer(firstBlockIndex, lastBlockIndex, blockContainer, pushDiv);
+		firstBlockIndexInDom = firstBlockIndex;
+		lastBlockIndexInDom = lastBlockIndex;
+	}
+
+	function fillEmptyViewportInContainer(firstBlockIndex, lastBlockIndex, container, pushDiv) {
+		for (let i = firstBlockIndex; i <= lastBlockIndex; i++) {
+			const block = drawBlock(0, i);
+			container.appendChild(block);
+		}
+
+		updatePushDiv(firstBlockIndex, pushDiv);
+	}
+
+	function updatePushDiv(firstBlockIndex, pushDiv) {
+		const height = firstBlockIndex * blockHeight;
+		pushDiv.style.height = height + 'px';
+	}
+
+
+	function onScroll() {
+		const scrollTop = scrollableContainer.scrollTop;
+		onViewportChange(scrollTop);
+	}
+
+	let mainContainer;
+    let scrollableContainer;
+	let pushDiv;
+	let blockContainer;
+	let blockWidth = 1920;
+	let blockHeight = 560;
+	let screenHeight = 0;
+	let screenWidth = 0;
+	let bufferedArea = 200;
+	let maxScroll = 400000;
+	let maxBlock;
+
+	function initializeComponents() {
+		mainContainer = document.getElementById("mainContainer");
+		scrollableContainer = document.getElementById("scrollableContainer");
+		pushDiv = document.getElementById("pushDiv");
+		blockContainer = document.getElementById("blockContainer");
+		scrollableContainer.addEventListener("scroll", onScroll);
+		screenHeight = scrollableContainer.clientHeight;
+		screenWidth = scrollableContainer.clientWidth;
+		firstBlockIndexInDom = -1;
+		lastBlockIndexInDom = -1;
+		setContextArea(maxScroll);
+	}
+
+	function initializeContentInDom() {
+		onViewportChange(scrollableContainer.scrollTop);
+		window.onresize = function(event) {
+			screenHeight = contentContainer.clientHeight;
+			screenWidth = contentContainer.clientWidth;
+			onViewportChange(scrollableContainer.scrollTop);
+		};
+	}
+
+	function setContextArea(yPx) {
+		maxScroll = yPx;
+		maxBlock = Math.ceil(maxScroll / blockHeight);
+		setContextAreaInDom(yPx);
+	}
+
+	function setContextAreaInDom(yPx) {
+		const maxScrollY = maxScroll + 'px';
+		const maxScrollX = (blockWidth * 2) + 'px';
+		mainContainer.style.height = maxScrollY;
+		mainContainer.style.width = maxScrollX;
+	}
+
+	window.addEventListener("load", () => {
+		initializeComponents();
+		initializeContentInDom();
+	});
+</script>
+
+</body>
+</html>
