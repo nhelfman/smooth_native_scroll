@@ -264,11 +264,6 @@
 
 	function initializeContentInDom() {
 		onViewportChange(scrollableContainer.scrollTop);
-		window.onresize = function(event) {
-			screenHeight = contentContainer.clientHeight;
-			screenWidth = contentContainer.clientWidth;
-			onViewportChange(scrollableContainer.scrollTop);
-		};
 	}
 
 	function setContextArea(yPx) {
