@@ -18,8 +18,8 @@ Try demo here: https://nhelfman.github.io/smooth_native_scroll/
 
 ![alt text](image.png)
 
-## Invetigation Files
-- `simple_composite_scroll_trace.perfetto_trace.gz`
-  Perfetto trace file while the issue is happening
+## Investigation Files
 - `simple_scroll_demo_white_areas_Trace-20250109T113258.json`
   Chromium DevTool profling capture while the issue is happening
+- `simple_composite_scroll_trace.perfetto_trace.gz`
+  Perfetto trace file while the issue is happening
